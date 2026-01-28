@@ -70,89 +70,135 @@ function handleFiles(files) {
     }
 }
 
-// 显示文件
-function displayFile(file) {
-    const fileItem = document.createElement('div');
-    fileItem.className = 'file-item fade-in';
-    
-    // 获取文件扩展名
-    const fileExtension = file.name.split('.').pop().toUpperCase();
-    
-    // 格式化文件大小
-    const fileSize = formatFileSize(file.size);
-    
-    fileItem.innerHTML = `
-        <div class="file-icon">${fileExtension}</div>
-        <div class="file-info">
-            <div class="file-name">${file.name}</div>
-            <div class="file-size">${fileSize}</div>
-        </div>
-        <button class="file-remove" title="移除文件">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-        </button>
-    `;
-    
-    // 移除文件
-    const removeBtn = fileItem.querySelector('.file-remove');
-    removeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        fileItem.style.animation = 'fadeIn 0.3s ease-out reverse';
-        setTimeout(() => {
-            fileItem.remove();
-        }, 300);
-    });
-    
-    uploadedFiles.appendChild(fileItem);
-    
-    // 如果是代码文件，显示预览
-    if (isCodeFile(file.name)) {
-        displayCodePreview(file);
-    }
-}
+ // GitHub 仓库配置
+   const GITHUB_REPO = 'xiaozishan/xiaozishan.github.io';
+   const GITHUB_API_URL = 'https://api.github.com';
 
-// 格式化文件大小
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-}
+   // 显示文件
+   async function displayFile(file) {
+       const fileItem = document.createElement('div');
+       fileItem.className = 'file-item fade-in';
 
-// 判断是否为代码文件
-function isCodeFile(filename) {
-    const codeExtensions = ['.js', '.jsx', '.ts', '.tsx', '.html', '.css', '.json', '.py', '.java', '.c', '.cpp', '.go', '.rs', '.php', '.rb', '.swift', '.kt', '.sql', '.md', '.yml', '.yaml', '.xml'];
-    const ext = filename.toLowerCase().substring(filename.lastIndexOf('.'));
-    return codeExtensions.includes(ext);
-}
+       // 获取文件扩展名
+       const fileExtension = file.name.split('.').pop().
+   toUpperCase();
 
-// 显示代码预览
-function displayCodePreview(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const codeContent = e.target.result;
-        
-        // 更新代码展示区域
-        const codeDisplay = document.querySelector('.code-display');
-        const codeFilename = codeDisplay.querySelector('.code-filename');
-        const codeElement = codeDisplay.querySelector('code');
-        
-        codeFilename.textContent = file.name;
-        codeElement.textContent = codeContent;
-        
-        // 简单的语法高亮（仅用于演示）
-        highlightSyntax(codeElement);
-    };
-    
-    // 限制文件大小（最多读取 10KB）
-    if (file.size <= 10240) {
-        reader.readAsText(file);
-    }
-}
+       // 格式化文件大小
+       const fileSize = formatFileSize(file.size);
 
+       fileItem.innerHTML = `
+           <div class="file-icon">${fileExtension}</div>
+           <div class="file-info">
+               <div class="file-name">${file.name}</div>
+               <div class="file-size">${fileSize}</div>
+               <div class="upload-status">上传中...</div>
+           </div>
+           <button class="file-remove" title="移除文件">
+               <svg width="20" height="20" viewBox="0 0 24 24"
+   fill="none" stroke="currentColor" stroke-width="2">
+                   <line x1="18" y1="6" x2="6" y2="18"></line>
+                   <line x1="6" y1="6" x2="18" y2="18"></line>
+               </svg>
+           </button>
+       `;
+
+       // 移除文件
+       const removeBtn = fileItem.querySelector('.file-remove');
+       removeBtn.addEventListener('click', (e) => {
+           e.stopPropagation();
+           fileItem.style.animation = 'fadeIn 0.3s ease-out
+   reverse';
+           setTimeout(() => {
+               fileItem.remove();
+           }, 300);
+       });
+
+       uploadedFiles.appendChild(fileItem);
+
+       // 上传文件到 GitHub
+       try {
+           await uploadToGitHub(file);
+           const uploadStatus = fileItem.querySelector(
+   '.upload-status');
+           uploadStatus.textContent = '上传成功 ✓';
+           uploadStatus.style.color = '#28a745';
+       } catch (error) {
+           console.error('上传失败:', error);
+           const uploadStatus = fileItem.querySelector(
+   '.upload-status');
+           uploadStatus.textContent = '上传失败 ✗';
+           uploadStatus.style.color = '#dc3545';
+       }
+
+       // 如果是代码文件，显示预览
+       if (isCodeFile(file.name)) {
+           displayCodePreview(file);
+       }
+   }
+
+   // 上传文件到 GitHub
+   async function uploadToGitHub(file) {
+       const reader = new FileReader();
+       return new Promise((resolve, reject) => {
+           reader.onload = async (e) => {
+               try {
+                   const content = e.target.result;
+                   const base64Content = btoa(content);
+
+                   const path = `uploads/${file.name}`;
+                   const url = `${GITHUB_API_URL}/repos/
+   ${GITHUB_REPO}/contents/${path}`;
+
+                   let sha = null;
+                   try {
+                       const existingFile = await fetch(url);
+                       if (existingFile.ok) {
+                           const existingData = await
+   existingFile.json();
+                           sha = existingData.sha;
+                       }
+                   } catch (err) {}
+
+                   const response = await fetch(url, {
+                       method: 'PUT',
+                       headers: {
+                           'Content-Type': 'application/json',
+                           'Authorization': `token
+   ${getGitHubToken()}`,
+                       },
+                       body: JSON.stringify({
+                           message: `Upload file: ${file.name}`,
+                           content: base64Content,
+                           sha: sha
+                       })
+                   });
+
+                   if (!response.ok) throw new Error('GitHub API
+   请求失败');
+                   resolve();
+               } catch (error) {
+                   reject(error);
+               }
+           };
+           reader.onerror = () => reject(reader.error);
+           reader.readAsBinaryString(file);
+       });
+   }
+
+   // 获取 GitHub Token
+   function getGitHubToken() {
+       let token = localStorage.getItem('github_token');
+       if (!token) {
+           token = prompt('请输入 GitHub Personal Access
+   Token:\n\n要创建
+   Token，请访问：\nhttps://github.com/settings/tokens\n\n需要勾选
+   "repo" 权限');
+           if (token) {
+               localStorage.setItem('github_token', token);
+           }
+       }
+       return token;
+   }
 // 简单的语法高亮（基础版本）
 function highlightSyntax(codeElement) {
     let code = codeElement.textContent;

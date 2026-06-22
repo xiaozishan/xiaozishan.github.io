@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Casio 科学计算器 + 2D/3D/隐函数自由绘图</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js">
+    </script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+        }
+
+        .app-container {
+            max-width: 1420px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 24px;
+            padding: 24px;
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .header h1 {
+            color: #e0e0e0;
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .header h1 .casio {
+            color: #f0a500;
+        }
+        .header h1 .c2d {
+            color: #6cf;
+        }
+        .header h1 .c3d {
+            color: #6f8;
+        }
+        .header .subtitle {
+            color: #8899aa;
+            font-size: 13px;
+        }
+        .header .subtitle kbd {
+            background: #2a2a40;
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 11px;
+            border: 1px solid #444;
+            color: #ccc;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 390px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* ===================== 计算器 ===================== */
+        .calculator {
+            background: #1e1e2e;
+            border-radius: 18px;
+            padding: 18px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+            border: 1px solid #2a2a3e;
+        }
+        .calc-brand {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px 8px 4px;
+            border-bottom: 1px solid #2a2a3e;
+            margin-bottom: 12px;
+        }
+        .calc-brand .name {
+            color: #c0c0c0;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .calc-brand .model {
+            color: #f0a500;
+            font-size: 11px;
+        }
+
+        .display {
+            background: #0a0a14;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            min-height: 95px;
+            border: 1px solid #2a2a3e;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        .display .indicators {
+            display: flex;
+            gap: 10px;
+            font-size: 10px;
+            color: #556;
+            height: 14px;
+            margin-bottom: 2px;
+        }
+        .display .indicators .on {
+            color: #8bf;
+            font-weight: 600;
+        }
+        .display .indicators .mem {
+            color: #fb8;
+        }
+        .display .indicators .err {
+            color: #f44;
+        }
+        .display .indicators .hid {
+            display: none;
+        }
+
+        .display .expr-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #d0d8e0;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 18px;
+            min-height: 28px;
+            caret-color: #f0a500;
+            padding: 0;
+            margin: 0;
+            display: block;
+            letter-spacing: 0.3px;
+        }
+        .display .expr-input::placeholder {
+            color: #445;
+            font-size: 15px;
+        }
+
+        .display .result-line {
+            font-size: 26px;
+            color: #f0f4ff;
+            font-family: 'Consolas', 'Courier New', monospace;
+            font-weight: 700;
+            min-height: 34px;
+            text-align: right;
+            word-break: break-all;
+            border-top: 1px dashed #1a1a2e;
+            padding-top: 4px;
+            margin-top: 2px;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+        .display .result-line.error {
+            color: #ff6b6b;
+            font-size: 16px;
+            font-weight: 400;
+        }
+        .display .result-line:hover {
+            color: #fff;
+        }
+
+        .calc-buttons {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+        .calc-buttons button {
+            padding: 12px 0;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.12s ease;
+            font-family: inherit;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .calc-buttons button:active {
+            transform: scale(0.94);
+        }
+        .calc-buttons button:focus-visible {
+            outline: 2px solid #f0a500;
+            outline-offset: 2px;
+        }
+
+        .btn-num {
+            background: #2a2a40;
+            color: #e8ecf0;
+            box-shadow: 0 2px 0 #1a1a28;
+        }
+        .btn-num:hover {
+            background: #353550;
+        }
+        .btn-num:active {
+            box-shadow: 0 1px 0 #1a1a28;
+        }
+
+        .btn-op {
+            background: #f0a500;
+            color: #1a1a2e;
+            box-shadow: 0 2px 0 #b87d00;
+        }
+        .btn-op:hover {
+            background: #ffb820;
+        }
+        .btn-op:active {
+            box-shadow: 0 1px 0 #b87d00;
+        }
+
+        .btn-fn {
+            background: #1e3a5f;
+            color: #8fcbff;
+            box-shadow: 0 2px 0 #0f2040;
+            font-size: 13px;
+        }
+        .btn-fn:hover {
+            background: #264a78;
+        }
+        .btn-fn:active {
+            box-shadow: 0 1px 0 #0f2040;
+        }
+
+        .btn-clear {
+            background: #d22;
+            color: #fff;
+            box-shadow: 0 2px 0 #991;
+        }
+        .btn-clear:hover {
+            background: #e33;
+        }
+        .btn-clear:active {
+            box-shadow: 0 1px 0 #991;
+        }
+
+        .btn-misc {
+            background: #2a2a40;
+            color: #b0c0d0;
+            box-shadow: 0 2px 0 #1a1a28;
+        }
+        .btn-misc:hover {
+            background: #353550;
+        }
+        .btn-misc:active {
+            box-shadow: 0 1px 0 #1a1a28;
+        }
+
+        .btn-eq {
+            background: #f0a500;
+            color: #1a1a2e;
+            box-shadow: 0 3px 0 #b87d00;
+            font-size: 20px;
+            font-weight: 800;
+            grid-column: span 5;
+            padding: 14px 0;
+            border-radius: 10px;
+        }
+        .btn-eq:hover {
+            background: #ffb820;
+        }
+        .btn-eq:active {
+            box-shadow: 0 1px 0 #b87d00;
+            transform: scale(0.97);
+        }
+
+        .btn-mode {
+            background: #1a3a2a;
+            color: #6f8;
+            box-shadow: 0 2px 0 #0d2818;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .btn-mode:hover {
+            background: #224a38;
+        }
+        .btn-mode:active {
+            box-shadow: 0 1px 0 #0d2818;
+        }
+        .btn-mode.rad {
+            color: #f88;
+            background: #3a1a1a;
+            box-shadow: 0 2px 0 #280d0d;
+        }
+        .btn-mode.rad:hover {
+            background: #4a2222;
+        }
+
+        /* ===================== 绘图区 ===================== */
+        .plot-section {
+            background: #12121e;
+            border-radius: 18px;
+            padding: 20px;
+            border: 1px solid #2a2a3e;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .plot-section h2 {
+            color: #e0e0e0;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* 模式标签 */
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            background: #0a0a14;
+            border-radius: 10px;
+            padding: 3px;
+            border: 1px solid #2a2a3e;
+            margin-bottom: 14px;
+        }
+        .mode-tabs button {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            background: transparent;
+            color: #667;
+            white-space: nowrap;
+        }
+        .mode-tabs button:hover {
+            color: #aab;
+        }
+        .mode-tabs button.active-2d {
+            background: #2d7acc;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(45, 122, 204, 0.3);
+        }
+        .mode-tabs button.active-implicit {
+            background: #cc6d2d;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(204, 109, 45, 0.3);
+        }
+        .mode-tabs button.active-3d {
+            background: #2d8a4e;
+            color: #fff;
+            box-shadow: 0 2px 8px rgba(45, 138, 78, 0.3);
+        }
+
+        /* 控制栏 */
+        .plot-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            margin-bottom: 14px;
+            align-items: center;
+        }
+        .plot-controls .cg {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .plot-controls label {
+            color: #aab;
+            font-size: 13px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .plot-controls input,
+        .plot-controls select {
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: #e0e0e0;
+            font-size: 13px;
+            font-family: 'Consolas', monospace;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .plot-controls input:focus,
+        .plot-controls select:focus {
+            border-color: #f0a500;
+        }
+        .plot-controls input[type="number"] {
+            width: 72px;
+            -moz-appearance: textfield;
+        }
+        .plot-controls input[type="number"]::-webkit-outer-spin-button,
+        .plot-controls input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .plot-controls .expr-wrap {
+            flex: 1;
+            min-width: 200px;
+        }
+        .plot-controls .expr-wrap input {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 15px;
+        }
+
+        .plot-controls .btn-plot {
+            background: #f0a500;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .plot-controls .btn-plot:hover {
+            background: #ffb820;
+            transform: translateY(-1px);
+        }
+        .plot-controls .btn-plot:active {
+            transform: scale(0.97);
+        }
+
+        .plot-controls .btn-cp {
+            background: #333;
+            color: #ccc;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+        .plot-controls .btn-cp:hover {
+            background: #444;
+        }
+
+        /* 示例 */
+        .examples-wrap {
+            position: relative;
+            display: inline-block;
+        }
+        .examples-wrap .ex-btn {
+            background: #2a2a40;
+            color: #aab;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .examples-wrap .ex-btn:hover {
+            background: #353550;
+            border-color: #f0a500;
+        }
+        .examples-wrap .ex-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: #1a1a2e;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 4px;
+            z-index: 20;
+            min-width: 320px;
+            max-height: 400px;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+        }
+        .examples-wrap .ex-menu.show {
+            display: block;
+        }
+        .examples-wrap .ex-menu .ex-hdr {
+            color: #667;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            padding: 6px 10px 2px 10px;
+            border-bottom: 1px solid #2a2a3e;
+            margin-bottom: 2px;
+            text-transform: uppercase;
+        }
+        .examples-wrap .ex-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 7px 12px;
+            color: #ccc;
+            font-size: 13px;
+            font-family: 'Consolas', monospace;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+        .examples-wrap .ex-menu button:hover {
+            background: #2a2a40;
+            color: #f0a500;
+        }
+        .examples-wrap .ex-menu .ex-desc {
+            color: #667;
+            font-size: 10px;
+            padding: 0 12px 4px 12px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        #plotContainer {
+            width: 100%;
+            height: 460px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #0a0a14;
+            border: 1px solid #2a2a3e;
+        }
+        #plotContainer .js-plotly-plot,
+        #plotContainer .plotly {
+            border-radius: 12px;
+        }
+
+        .plot-error {
+            color: #ff6b6b;
+            font-size: 13px;
+            padding: 6px 0 0 0;
+            display: none;
+        }
+        .plot-hint {
+            color: #667;
+            font-size: 12px;
+            padding: 4px 0 0 0;
+        }
+        .plot-hint code {
+            background: #1a1a2e;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #8bf;
+        }
+
+        .plot-wrapper {
+            position: relative;
+        }
+        .loading-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 10, 20, 0.7);
+            border-radius: 12px;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            color: #f0a500;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #333;
+            border-top-color: #f0a500;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer-note {
+            margin-top: 16px;
+            text-align: center;
+            color: #445;
+            font-size: 11px;
+        }
+
+        /* ===================== 响应式 ===================== */
+        @media (max-width: 1000px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                max-width: 560px;
+                margin: 0 auto;
+            }
+            .calculator {
+                max-width: 420px;
+                margin: 0 auto;
+                width: 100%;
+            }
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 8px;
+            }
+            .app-container {
+                padding: 12px;
+            }
+            .header h1 {
+                font-size: 16px;
+            }
+            .calc-buttons button {
+                padding: 10px 0;
+                font-size: 13px;
+            }
+            .calc-buttons .btn-fn {
+                font-size: 11px;
+            }
+            .display .expr-input {
+                font-size: 15px;
+            }
+            .display .result-line {
+                font-size: 20px;
+            }
+            .mode-tabs button {
+                font-size: 11px;
+                padding: 6px 8px;
+            }
+            .plot-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .plot-controls .cg {
+                flex-wrap: wrap;
+            }
+            .plot-controls .expr-wrap input {
+                width: 100%;
+            }
+            #plotContainer {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+
+        <!-- ===== 顶栏 ===== -->
+        <div class="header">
+            <h1>🧮 <span class="casio">CASIO</span> 科学计算器
+                <span style="color:#556;font-weight:300;">+</span>
+                <span class="c2d">2D</span>
+                <span style="color:#556;font-weight:300;">/</span>
+                <span style="color:#cc6d2d;">隐式</span>
+                <span style="color:#556;font-weight:300;">/</span>
+                <span class="c3d">3D</span>
+                自由绘图
+            </h1>
+            <span class="subtitle">
+                自由表达式 · 隐函数 f(x,y)=0 · 键盘操作
+                <kbd>Tab</kbd> 切换
+            </span>
+        </div>
+
+        <!-- ===== 主布局 ===== -->
+        <div class="main-grid">
+
+            <!-- ===== 左侧：计算器 ===== -->
+            <div class="calculator">
+                <div class="calc-brand">
+                    <span class="name">CASIO</span>
+                    <span class="model">fx-FREEDOM Pro</span>
+                </div>
+
+                <div class="display" id="display">
+                    <div class="indicators">
+                        <span id="indDEG" class="on">DEG</span>
+                        <span id="indRAD" class="hid">RAD</span>
+                        <span id="indMEM" style="opacity:0.4;">M</span>
+                        <span id="indERR" class="hid" style="color:#f44;">ERROR</span>
+                    </div>
+                    <input class="expr-input" id="calcExpr"
+                    placeholder="直接输入表达式…"
+                    spellcheck="false" autocomplete="off"
+                    value="">
+                    <div class="result-line" id="calcResult">0</div>
+                </div>
+
+                <div class="calc-buttons" id="calcButtons">
+                    <button class="btn-misc" data-a="(">(</button>
+                    <button class="btn-misc" data-a=")">)</button>
+                    <button class="btn-misc" data-a="bs">⌫</button>
+                    <button class="btn-clear" data-a="del">DEL</button>
+                    <button class="btn-clear" data-a="ac">AC</button>
+
+                    <button class="btn-fn" data-a="sin">sin</button>
+                    <button class="btn-fn" data-a="cos">cos</button>
+                    <button class="btn-fn" data-a="tan">tan</button>
+                    <button class="btn-fn" data-a="log">log₁₀</button>
+                    <button class="btn-fn" data-a="ln">ln</button>
+
+                    <button class="btn-fn" data-a="sq">x²</button>
+                    <button class="btn-fn" data-a="cube">x³</button>
+                    <button class="btn-fn" data-a="pow">xʸ</button>
+                    <button class="btn-fn" data-a="sqrt">√</button>
+                    <button class="btn-fn" data-a="inv">1/x</button>
+
+                    <button class="btn-num" data-a="7">7</button>
+                    <button class="btn-num" data-a="8">8</button>
+                    <button class="btn-num" data-a="9">9</button>
+                    <button class="btn-op" data-a="div">÷</button>
+                    <button class="btn-fn" data-a="pi">π</button>
+
+                    <button class="btn-num" data-a="4">4</button>
+                    <button class="btn-num" data-a="5">5</button>
+                    <button class="btn-num" data-a="6">6</button>
+                    <button class="btn-op" data-a="mul">×</button>
+                    <button class="btn-fn" data-a="e">e</button>
+
+                    <button class="btn-num" data-a="1">1</button>
+                    <button class="btn-num" data-a="2">2</button>
+                    <button class="btn-num" data-a="3">3</button>
+                    <button class="btn-op" data-a="-">−</button>
+                    <button class="btn-misc" data-a="ans">Ans</button>
+
+                    <button class="btn-num" data-a="0">0</button>
+                    <button class="btn-num" data-a=".">.</button>
+                    <button class="btn-misc" data-a="neg">(–)</button>
+                    <button class="btn-op" data-a="+">+</button>
+                    <button class="btn-misc" data-a="pct">%</button>
+
+                    <button class="btn-misc" data-a="mc" style="font-size:11px;">MC</button>
+                    <button class="btn-misc" data-a="mr" style="font-size:11px;">MR</button>
+                    <button class="btn-misc" data-a="m+" style="font-size:11px;">M+</button>
+                    <button class="btn-misc" data-a="m-" style="font-size:11px;">M−</button>
+                    <button class="btn-mode" id="modeBtn" data-a="mode">DEG</button>
+
+                    <button class="btn-eq" data-a="eq">=</button>
+                </div>
+            </div>
+
+            <!-- ===== 右侧：绘图区 ===== -->
+            <div class="plot-section">
+                <h2>📊 自由表达式绘图
+                    <span id="modeLabel" style="font-size:13px;color:#6cf;font-weight:400;">
+                        2D · y = f(x)
+                    </span>
+                </h2>
+
+                <!-- 三模式切换 -->
+                <div class="mode-tabs" id="modeTabs">
+                    <button class="active-2d" data-mode="2d" id="tab2d">📈 2D 曲线</button>
+                    <button data-mode="implicit" id="tabImp">🎯 隐函数</button>
+                    <button data-mode="3d" id="tab3d">🏔️ 3D 曲面</button>
+                </div>
+
+                <div class="plot-controls" id="plotControls">
+                    <div class="cg expr-wrap">
+                        <label id="exprLabel">y =</label>
+                        <input type="text" id="exprInput"
+                        value="sin(x)"
+                        placeholder="输入表达式…" spellcheck="false">
+                    </div>
+
+                    <!-- 2D 控件 -->
+                    <span id="ctrl2D">
+                        <div class="cg">
+                            <label>X</label>
+                            <input type="number" id="x2dL" value="-10" step="0.5">
+                            <span style="color:#556;">~</span>
+                            <input type="number" id="x2dR" value="10" step="0.5">
+                        </div>
+                        <div class="cg">
+                            <label>采样</label>
+                            <select id="n2d">
+                                <option value="100">100</option>
+                                <option value="200" selected>200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1000</option>
+                            </select>
+                        </div>
+                    </span>
+
+                    <!-- 隐函数控件 -->
+                    <span id="ctrlIMP" style="display:none;">
+                        <div class="cg">
+                            <label>X</label>
+                            <input type="number" id="xImpL" value="-3" step="0.5">
+                            <span style="color:#556;">~</span>
+                            <input type="number" id="xImpR" value="3" step="0.5">
+                        </div>
+                        <div class="cg">
+                            <label>Y</label>
+                            <input type="number" id="yImpL" value="-3" step="0.5">
+                            <span style="color:#556;">~</span>
+                            <input type="number" id="yImpR" value="3" step="0.5">
+                        </div>
+                        <div class="cg">
+                            <label>精度</label>
+                            <select id="impGrid">
+                                <option value="50">低 (50×50)</option>
+                                <option value="100" selected>中 (100×100)</option>
+                                <option value="200">高 (200×200)</option>
+                                <option value="400">极 (400×400)</option>
+                            </select>
+                        </div>
+                        <div class="cg">
+                            <label>颜色</label>
+                            <input type="color" id="impColor" value="#f0a500">
+                        </div>
+                    </span>
+
+                    <!-- 3D 控件 -->
+                    <span id="ctrl3D" style="display:none;">
+                        <div class="cg">
+                            <label>X</label>
+                            <input type="number" id="x3dL" value="-8" step="0.5">
+                            <span style="color:#556;">~</span>
+                            <input type="number" id="x3dR" value="8" step="0.5">
+                        </div>
+                        <div class="cg">
+                            <label>Y</label>
+                            <input type="number" id="y3dL" value="-8" step="0.5">
+                            <span style="color:#556;">~</span>
+                            <input type="number" id="y3dR" value="8" step="0.5">
+                        </div>
+                        <div class="cg">
+                            <label>网格</label>
+                            <select id="n3d">
+                                <option value="20">20²</option>
+                                <option value="30">30²</option>
+                                <option value="50" selected>50²</option>
+                                <option value="70">70²</option>
+                                <option value="100">100²</option>
+                            </select>
+                        </div>
+                        <div class="cg">
+                            <label>配色</label>
+                            <select id="cs3d">
+                                <option value="Viridis">Viridis</option>
+                                <option value="Plasma">Plasma</option>
+                                <option value="Inferno">Inferno</option>
+                                <option value="Magma">Magma</option>
+                                <option value="Jet">Jet</option>
+                                <option value="Rainbow">Rainbow</option>
+                                <option value="Electric">Electric</option>
+                                <option value="RdBu">RdBu</option>
+                            </select>
+                        </div>
+                    </span>
+
+                    <button class="btn-plot" id="plotBtn">🔄 绘制</button>
+                    <button class="btn-cp" id="clrBtn">✕ 清除</button>
+                    <div class="examples-wrap">
+                        <button class="ex-btn" id="exBtn">📋 示例 ▾</button>
+                        <div class="ex-menu" id="exMenu"></div>
+                    </div>
+                </div>
+
+                <div class="plot-wrapper">
+                    <div id="plotContainer"></div>
+                    <div class="loading-overlay" id="loadOverlay">
+                        <div class="spinner"></div>
+                        <span>计算中…</span>
+                    </div>
+                </div>
+                <div class="plot-error" id="plotErr"></div>
+                <div class="plot-hint" id="plotHint">
+                    💡 支持隐式乘法 <code>2x</code> · 函数自动补全 · 隐式模式输入 <code>f(x,y) = 0</code> 的左半部分
+                </div>
+            </div>
+        </div>
+
+        <div class="footer-note">
+            自由表达式 · sin cos tan log ln sqrt abs ceil floor · 隐乘 2x=2×x · 隐函数 marching-squares 追踪
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // =====================================================
+            //  1. 依赖
+            // =====================================================
+            if (typeof math === 'undefined') {
+                document.body.innerHTML =
+                    '<div style="color:#f44;padding:40px;text-align:center">❌ math.js 加载失败，请刷新</div>';
+                return;
+            }
+            const HAS_PLOTLY = typeof Plotly !== 'undefined';
+
+            // =====================================================
+            //  2. 计算器状态
+            // =====================================================
+            const S = {
+                expr: '',
+                result: '',
+                ans: null,
+                mem: 0,
+                hasMem: false,
+                rad: false,
+                justEq: false,
+            };
+
+            // =====================================================
+            //  3. 计算器 DOM
+            // =====================================================
+            const $ = id => document.getElementById(id);
+            const cExpr = $('calcExpr');
+            const cRes = $('calcResult');
+            const iDEG = $('indDEG');
+            const iRAD = $('indRAD');
+            const iMEM = $('indMEM');
+            const iERR = $('indERR');
+            const mBtn = $('modeBtn');
+
+            function updDisp() {
+                cExpr.value = S.expr || '';
+                if (S.result === '') {
+                    cRes.textContent = '0';
+                    cRes.className = 'result-line';
+                } else if (S.result === 'ERR') {
+                    cRes.textContent = '语法错误';
+                    cRes.className = 'result-line error';
+                } else if (S.result === 'INF') {
+                    cRes.textContent = '无穷大 / 未定义';
+                    cRes.className = 'result-line error';
+                } else {
+                    cRes.textContent = S.result;
+                    cRes.className = 'result-line';
+                }
+                iDEG.classList.toggle('on', !S.rad);
+                iDEG.classList.toggle('hid', S.rad);
+                iRAD.classList.toggle('hid', !S.rad);
+                iRAD.classList.toggle('on', S.rad);
+                iMEM.style.opacity = S.hasMem ? '1' : '0.4';
+                mBtn.textContent = S.rad ? 'RAD' : 'DEG';
+                mBtn.classList.toggle('rad', S.rad);
+            }
+
+            // =====================================================
+            //  4. 计算器核心
+            // =====================================================
+            function pre(expr) {
+                return expr.replace(/²/g, '^2').replace(/³/g, '^3')
+                    .replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-').replace(/π/g, 'pi');
+            }
+
+            function calcEval() {
+                const raw = S.expr.trim();
+                if (!raw) return;
+                try {
+                    let e = pre(raw);
+                    const o = (e.match(/\(/g) || []).length;
+                    const c = (e.match(/\)/g) || []).length;
+                    if (o > c) e += ')'.repeat(o - c);
+                    const scope = {};
+                    if (S.ans !== null) scope.ans = S.ans;
+                    const v = math.evaluate(e, scope);
+                    if (typeof v === 'number') {
+                        if (!isFinite(v)) { S.result = 'INF'; } else {
+                            S.result = Number.isInteger(v) && Math.abs(v) < 1e15 ? v.toString() : math.format(v,
+                            { precision: 14 });
+                            S.ans = v;
+                        }
+                    } else if (v && typeof v === 'object') {
+                        S.result = v.toString();
+                        const n = parseFloat(v);
+                        if (!isNaN(n)) S.ans = n;
+                    } else {
+                        S.result = String(v);
+                    }
+                    iERR.classList.add('hid');
+                } catch (_) {
+                    S.result = 'ERR';
+                    iERR.classList.remove('hid');
+                    setTimeout(() => iERR.classList.add('hid'), 3000);
+                }
+                S.justEq = true;
+                updDisp();
+            }
+
+            // ---- 插入文本（支持光标位置） ----
+            function ins(text) {
+                const el = cExpr;
+                const pos = el.selectionStart !== null ? el.selectionStart : S.expr.length;
+                const end = el.selectionEnd !== null ? el.selectionEnd : pos;
+                S.expr = S.expr.slice(0, pos) + text + S.expr.slice(end);
+                requestAnimationFrame(() => {
+                    el.focus();
+                    const np = pos + text.length;
+                    el.setSelectionRange(np, np);
+                });
+            }
+
+            // ---- 按钮动作 ----
+            function act(a) {
+                iERR.classList.add('hid');
+
+                if (S.justEq && !['eq', 'ans', 'mr', 'm+', 'm-', 'mc'].includes(a)) {
+                    if ('÷×−+'.includes(a)) {
+                        if (S.result && S.result !== 'ERR' && S.result !== 'INF') S.expr = S.result;
+                    } else { S.expr = '';
+                        S.result = ''; }
+                    S.justEq = false;
+                }
+
+                const dig = (d) => { ins(d);
+                    S.justEq = false; };
+
+                switch (a) {
+                    case '0':
+                    case '1':
+                    case '2':
+                    case '3':
+                    case '4':
+                    case '5':
+                    case '6':
+                    case '7':
+                    case '8':
+                    case '9':
+                    case '.':
+                        dig(a);
+                        break;
+                    case '+':
+                        ins('+');
+                        S.justEq = false;
+                        break;
+                    case '-':
+                    case '−':
+                        ins('−');
+                        S.justEq = false;
+                        break;
+                    case 'div':
+                        ins('÷');
+                        S.justEq = false;
+                        break;
+                    case 'mul':
+                        ins('×');
+                        S.justEq = false;
+                        break;
+                    case '(':
+                    case ')':
+                        dig(a);
+                        break;
+
+                    case 'sin':
+                        ins('sin(');
+                        S.justEq = false;
+                        break;
+                    case 'cos':
+                        ins('cos(');
+                        S.justEq = false;
+                        break;
+                    case 'tan':
+                        ins('tan(');
+                        S.justEq = false;
+                        break;
+                    case 'log':
+                        ins('log10(');
+                        S.justEq = false;
+                        break;
+                    case 'ln':
+                        ins('log(');
+                        S.justEq = false;
+                        break;
+                    case 'sqrt':
+                        ins('sqrt(');
+                        S.justEq = false;
+                        break;
+                    case 'sq':
+                        ins('²');
+                        S.justEq = false;
+                        break;
+                    case 'cube':
+                        ins('³');
+                        S.justEq = false;
+                        break;
+                    case 'pow':
+                        ins('^');
+                        S.justEq = false;
+                        break;
+                    case 'inv':
+                        ins('^(-1)');
+                        S.justEq = false;
+                        break;
+                    case 'pi':
+                        ins('π');
+                        S.justEq = false;
+                        break;
+                    case 'e':
+                        ins('e');
+                        S.justEq = false;
+                        break;
+                    case 'neg':
+                        ins('(-');
+                        S.justEq = false;
+                        break;
+                    case 'pct':
+                        ins('%');
+                        S.justEq = false;
+                        break;
+                    case 'ans':
+                        if (S.ans !== null) ins(String(S.ans));
+                        else ins('ans');
+                        S.justEq = false;
+                        break;
+
+                    case 'bs': {
+                        const el = cExpr;
+                        const pos = el.selectionStart !== null ? el.selectionStart : S.expr.length;
+                        const end = el.selectionEnd !== null ? el.selectionEnd : pos;
+                        if (pos !== end) {
+                            S.expr = S.expr.slice(0, pos) + S.expr.slice(end);
+                        } else if (pos > 0) {
+                            S.expr = S.expr.slice(0, pos - 1) + S.expr.slice(pos);
+                        }
+                        requestAnimationFrame(() => {
+                            el.focus();
+                            const np = Math.max(0, pos - 1);
+                            el.setSelectionRange(np, np);
+                        });
+                        S.justEq = false;
+                        break;
+                    }
+                    case 'del': {
+                        const el = cExpr;
+                        const pos = el.selectionStart !== null ? el.selectionStart : S.expr.length;
+                        const end = el.selectionEnd !== null ? el.selectionEnd : pos;
+                        if (pos !== end) {
+                            S.expr = S.expr.slice(0, pos) + S.expr.slice(end);
+                        } else if (pos < S.expr.length) {
+                            const code = S.expr.codePointAt(pos);
+                            const charLen = code !== undefined && code > 0xFFFF ? 2 : 1;
+                            S.expr = S.expr.slice(0, pos) + S.expr.slice(pos + charLen);
+                        }
+                        requestAnimationFrame(() => {
+                            el.focus();
+                            el.setSelectionRange(pos, pos);
+                        });
+                        S.justEq = false;
+                        break;
+                    }
+                    case 'ac':
+                        S.expr = '';
+                        S.result = '';
+                        S.justEq = false;
+                        iERR.classList.add('hid');
+                        break;
+
+                    case 'eq':
+                        calcEval();
+                        return;
+
+                    case 'mode':
+                        S.rad = !S.rad;
+                        math.config({ angle: S.rad ? 'radian' : 'degree' });
+                        if (S.expr && S.result && S.result !== 'ERR' && S.result !== 'INF') calcEval();
+                        break;
+
+                    case 'mc':
+                        S.mem = 0;
+                        S.hasMem = false;
+                        break;
+                    case 'mr':
+                        if (S.hasMem) ins(String(S.mem));
+                        break;
+                    case 'm+': {
+                        let v = parseFloat(S.result);
+                        if (isNaN(v)) { calcEval();
+                            v = parseFloat(S.result); }
+                        if (!isNaN(v) && isFinite(v)) { S.mem += v;
+                            S.hasMem = true; }
+                        break;
+                    }
+                    case 'm-': {
+                        let v = parseFloat(S.result);
+                        if (isNaN(v)) { calcEval();
+                            v = parseFloat(S.result); }
+                        if (!isNaN(v) && isFinite(v)) { S.mem -= v;
+                            S.hasMem = true; }
+                        break;
+                    }
+                }
+                updDisp();
+            }
+
+            // =====================================================
+            //  5. 计算器事件
+            // =====================================================
+            $('calcButtons').addEventListener('click', function(e) {
+                const b = e.target.closest('button');
+                if (b && b.dataset.a) act(b.dataset.a);
+            });
+
+            cExpr.addEventListener('input', function() {
+                S.expr = this.value;
+                S.justEq = false;
+                S.result = '';
+                updDisp();
+            });
+            cExpr.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault();
+                    calcEval(); }
+                if (e.key === 'Escape') { e.preventDefault();
+                    act('ac'); }
+            });
+
+            cRes.addEventListener('click', function() {
+                const t = this.textContent;
+                if (t && t !== '0' && t !== '语法错误' && t !== '无穷大 / 未定义') {
+                    navigator.clipboard.writeText(t).catch(() => {});
+                    const orig = this.textContent;
+                    this.textContent = '✓ 已复制';
+                    this.style.color = '#6f8';
+                    setTimeout(() => { this.textContent = orig;
+                        this.style.color = ''; }, 800);
+                }
+            });
+
+            // ---- 全局键盘（仅在非输入框时映射） ----
+            document.addEventListener('keydown', function(e) {
+                const ae = document.activeElement;
+                const tag = ae ? ae.tagName : '';
+                const inInput = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA';
+                const inCalc = ae === cExpr;
+
+                if (inInput && !inCalc) return;
+
+                if (inCalc) {
+                    if (e.key === 'Enter') { e.preventDefault();
+                        calcEval(); }
+                    if (e.key === 'Escape') { e.preventDefault();
+                        act('ac'); }
+                    return;
+                }
+
+                const map = {
+                    '0': '0',
+                    '1': '1',
+                    '2': '2',
+                    '3': '3',
+                    '4': '4',
+                    '5': '5',
+                    '6': '6',
+                    '7': '7',
+                    '8': '8',
+                    '9': '9',
+                    '.': '.',
+                    '+': '+',
+                    '-': '-',
+                    '*': 'mul',
+                    '/': 'div',
+                    '(': '(',
+                    ')': ')',
+                    'Enter': 'eq',
+                    '=': 'eq',
+                    'Backspace': 'bs',
+                    'Delete': 'del',
+                    'Escape': 'ac',
+                    '^': 'pow',
+                    '%': 'pct',
+                };
+                const a = map[e.key];
+                if (a) { e.preventDefault();
+                    act(a); }
+            });
+
+            // =====================================================
+            //  6. 初始化 math.js
+            // =====================================================
+            math.config({ angle: 'degree' });
+
+            // =====================================================
+            //  7. 绘图状态
+            // =====================================================
+            let PM = '2d'; // '2d'｜'implicit'｜'3d'
+            let pid = 0;
+
+            const pC = $('plotContainer');
+            const pErr = $('plotErr');
+            const pHint = $('plotHint');
+            const pLoad = $('loadOverlay');
+            const pLabel = $('modeLabel');
+
+            // 2D
+            const c2 = {
+                expr: $('exprInput'),
+                xL: $('x2dL'),
+                xR: $('x2dR'),
+                n: $('n2d'),
+                wrap: $('ctrl2D'),
+                lab: $('exprLabel'),
+            };
+            // Implicit
+            const ci = {
+                expr: $('exprInput'),
+                xL: $('xImpL'),
+                xR: $('xImpR'),
+                yL: $('yImpL'),
+                yR: $('yImpR'),
+                n: $('impGrid'),
+                col: $('impColor'),
+                wrap: $('ctrlIMP'),
+            };
+            // 3D
+            const c3 = {
+                expr: $('exprInput'),
+                xL: $('x3dL'),
+                xR: $('x3dR'),
+                yL: $('y3dL'),
+                yR: $('y3dR'),
+                n: $('n3d'),
+                cs: $('cs3d'),
+                wrap: $('ctrl3D'),
+            };
+
+            const t2 = $('tab2d'),
+                ti = $('tabImp'),
+                t3 = $('tab3d');
+            const exBtn = $('exBtn'),
+                exMenu = $('exMenu');
+            const plBtn = $('plotBtn'),
+                clBtn = $('clrBtn');
+
+            // =====================================================
+            //  8. 模式切换
+            // =====================================================
+            function setMode(m) {
+                PM = m;
+                const is2 = m === '2d',
+                    isI = m === 'implicit',
+                    is3 = m === '3d';
+
+                // tabs
+                [t2, ti, t3].forEach(b => b.className = '');
+                if (is2) t2.className = 'active-2d';
+                if (isI) ti.className = 'active-implicit';
+                if (is3) t3.className = 'active-3d';
+
+                c2.wrap.style.display = is2 ? '' : 'none';
+                ci.wrap.style.display = isI ? '' : 'none';
+                c3.wrap.style.display = is3 ? '' : 'none';
+
+                c2.lab.textContent = is2 ? 'y =' : isI ? 'f(x,y) = 0 :' : 'z =';
+                pLabel.textContent = is2 ? '2D · y = f(x)' : isI ? '隐函数 · f(x,y) = 0' : '3D · z = f(x, y)';
+                pHint.innerHTML = isI ?
+                    '🎯 隐函数模式：输入 <code>f(x,y)</code>，程序追踪 <code>f(x,y) = 0</code> 的曲线 · 使用 Marching Squares 算法' :
+                    '💡 隐式乘法 <code>2x</code> · 函数自动补全 · 隐函数输入等式左侧';
+
+                buildMenu();
+                doPlot();
+            }
+
+            t2.addEventListener('click', () => setMode('2d'));
+            ti.addEventListener('click', () => setMode('implicit'));
+            t3.addEventListener('click', () => setMode('3d'));
+
+            // =====================================================
+            //  9. 示例
+            // =====================================================
+            const EX = {
+                '2d': [
+                    { e: 'sin(x)', d: '🌊 正弦波' },
+                    { e: 'cos(x)', d: '🌊 余弦波' },
+                    { e: 'tan(x)', d: '📈 正切（含渐近线）' },
+                    { e: 'x^2', d: '🪜 抛物线' },
+                    { e: 'x^3 - 3*x', d: '⛰️ 三次曲线' },
+                    { e: 'sin(1/x)', d: '🎯 震荡（x→0）' },
+                    { e: 'exp(-x) * sin(5*x)', d: '📉 衰减振荡' },
+                    { e: '1 / (1 + exp(-x))', d: '🚀 Sigmoid' },
+                    { e: 'abs(x)', d: '📐 V 形绝对值' },
+                    { e: 'sin(x) / x', d: '🎡 sinc' },
+                    { e: 'sqrt(abs(x)) * sin(x)', d: '🌀 增幅振荡' },
+                    { e: 'x * sin(x)', d: '🦋 递增振荡' },
+                    { e: 'x^4 - 2*x^2', d: '📉 双谷曲线' },
+                    { e: 'floor(x)', d: '🧱 阶梯函数' },
+                    { e: 'cos(3*x) * exp(-0.2*x)', d: '🌿 阻尼余弦' },
+                ],
+                implicit: [
+                    { e: 'x^2 + y^2 - 1', d: '⭕ 单位圆' },
+                    { e: 'x^2/4 + y^2/9 - 1', d: '🥚 椭圆' },
+                    { e: 'x^2 - y^2 - 1', d: '🌀 双曲线' },
+                    { e: 'x^3 + y^3 - 3*x*y', d: '🍃 笛卡尔叶形线' },
+                    { e: 'x^4 + y^4 - 1', d: '⬜ 超椭圆（方圆）' },
+                    { e: 'y^2 - x^3', d: '🗡️ 尖点曲线' },
+                    { e: 'sin(x) - sin(y)', d: '🌊 正弦等值线' },
+                    { e: 'cos(x) - cos(y)', d: '🌊 余弦等值线' },
+                    { e: '(x^2 + y^2 - 1)^3 - x^2 * y^3', d: '❤️ 心形线' },
+                    { e: 'x^2*y + x*y^2 - 1', d: '⚡ 等轴双曲线' },
+                    { e: 'sin(x*y) - 0.5', d: '🎯 正弦乘积线' },
+                    { e: 'x^2 + 2*y^2 - 2*x*y - 1', d: '↗️ 旋转椭圆' },
+                    { e: 'x^3 - 3*x*y^2 - 1', d: '🌟 三叶形线' },
+                    { e: 'exp(-x^2 - y^2) - 0.5', d: '⭕ 高斯等值线（圆）' },
+                    { e: 'max(abs(x), abs(y)) - 1', d: '⬜ 正方形边界' },
+                ],
+                '3d': [
+                    { e: 'sin(sqrt(x^2 + y^2))', d: '🌊 水波纹' },
+                    { e: 'cos(x) * sin(y)', d: '🌐 棋盘格' },
+                    { e: 'x^2 - y^2', d: '🏇 马鞍面' },
+                    { e: 'sin(x)*cos(y) / (1 + x^2 + y^2)', d: '💧 衰减波纹' },
+                    { e: 'exp(-(x^2+y^2)/10) * sin(x)*cos(y)', d: '🌋 高斯调制' },
+                    { e: 'sin(x^2 + y^2) / (x^2 + y^2 + 0.01)', d: '🎯 2D sinc' },
+                    { e: 'cos(sqrt(x^2 + y^2))', d: '⭕ 同心圆波' },
+                    { e: '(x^2 + y^2) / 10', d: '🪜 旋转抛物面' },
+                    { e: 'sin(3*x)*cos(3*y)*exp(-(x^2+y^2)/6)', d: '🦋 蝶形波' },
+                    { e: 'cos(2*x) + sin(2*y)', d: '🧩 叠加波' },
+                    { e: 'exp(-sqrt(x^2 + y^2)) * cos(5*sqrt(x^2+y^2))', d: '🎪 环形波' },
+                    { e: 'sin(x) + sin(y)', d: '🏗️ 正交波和' },
+                ]
+            };
+
+            function buildMenu() {
+                const list = EX[PM] || EX['2d'];
+                exMenu.innerHTML = '';
+                const hdr = document.createElement('div');
+                hdr.className = 'ex-hdr';
+                hdr.textContent = { '2d': '📈 2D 曲线', implicit: '🎯 隐函数', '3d': '🏔️ 3D 曲面' } [PM] || '示例';
+                exMenu.appendChild(hdr);
+                list.forEach(item => {
+                    const b = document.createElement('button');
+                    b.textContent = item.e;
+                    b.dataset.e = item.e;
+                    exMenu.appendChild(b);
+                    const d = document.createElement('div');
+                    d.className = 'ex-desc';
+                    d.textContent = item.d;
+                    exMenu.appendChild(d);
+                });
+            }
+
+            exBtn.addEventListener('click', e => { e.stopPropagation();
+                exMenu.classList.toggle('show'); });
+            document.addEventListener('click', () => exMenu.classList.remove('show'));
+            exMenu.addEventListener('click', function(e) {
+                const b = e.target.closest('button');
+                if (!b) return;
+                const expr = b.dataset.e;
+                if (expr) { c2.expr.value = expr;
+                    exMenu.classList.remove('show');
+                    doPlot(); }
+            });
+
+            // =====================================================
+            //  10. 工具函数
+            // =====================================================
+            function lin(a, b, n) { const s = (b - a) / (n - 1); const r = [];
+                for (let i = 0; i < n; i++) r.push(a + i * s); return r; }
+
+            function showErr(msg) { pErr.textContent = '⚠️ ' + msg;
+                pErr.style.display = 'block';
+                pLoad.classList.remove('show'); }
+
+            // =====================================================
+            //  11. 2D 绘图
+            // =====================================================
+            function plot2D(expr, id) {
+                const xL = parseFloat(c2.xL.value) || -10;
+                const xR = parseFloat(c2.xR.value) || 10;
+                const n = parseInt(c2.n.value, 10) || 200;
+                if (xL >= xR) { showErr('X 最小值必须小于最大值'); return; }
+
+                setTimeout(() => {
+                    if (id !== pid) { pLoad.classList.remove('show'); return; }
+                    const x = lin(xL, xR, n);
+                    let bad = false;
+                    const y = x.map(xv => {
+                        try { const v = math.evaluate(expr, { x: xv }); return (typeof v === 'number' &&
+                                isFinite(v)) ? v : NaN; } catch (_) { bad = true; return NaN; }
+                    });
+                    if (id !== pid) { pLoad.classList.remove('show'); return; }
+                    if (bad) { pErr.textContent = '⚠️ 部分点异常，已跳过';
+                        pErr.style.display = 'block'; }
+
+                    const vy = y.filter(v => isFinite(v));
+                    const ymn = vy.length ? Math.min(...vy) : -1;
+                    const ymx = vy.length ? Math.max(...vy) : 1;
+                    const pad = (ymx - ymn) * 0.05 || 0.5;
+
+                    const data = [{
+                        x,
+                        y,
+                        type: 'scatter',
+                        mode: 'lines',
+                        name: `y=${expr}`,
+                        line: { color: '#f0a500', width: 2.5 },
+                        hoverinfo: 'x+y',
+                    }];
+                    if (ymn < 0 && ymx > 0) {
+                        data.push({ x: [xL, xR], y: [0, 0], type: 'scatter', mode: 'lines', name: 'y=0',
+                            line: { color: '#555', width: 1, dash: 'dash' }, hoverinfo: 'skip' });
+                    }
+                    const lay = {
+                        title: { text: `y = ${expr}`, font: { color: '#e0e0e0', size: 14 } },
+                        autosize: true, height: 460,
+                        paper_bgcolor: '#0a0a14', plot_bgcolor: '#0a0a14',
+                        font: { color: '#aab', size: 12 },
+                        xaxis: { title: 'x', gridcolor: '#2a2a3e', zerolinecolor: '#444', color: '#889',
+                            range: [xL, xR] },
+                        yaxis: { title: 'y', gridcolor: '#2a2a3e', zerolinecolor: '#444', color: '#889',
+                            range: [ymn - pad, ymx + pad] },
+                        margin: { l: 50, r: 20, b: 40, t: 50 },
+                        hovermode: 'x', dragmode: 'zoom', showlegend: false,
+                    };
+                    try { Plotly.newPlot(pC, data, lay, { responsive: true, displaylogo: false, scrollZoom: true,
+                            modeBarButtonsToRemove: ['lasso2d', 'select2d'] }); } catch (e) { showErr(e.message); }
+                    pLoad.classList.remove('show');
+                }, 30);
+            }
+
+            // =====================================================
+            //  12. Marching Squares — 隐函数曲线追踪
+            // =====================================================
+            function march(f, xL, xR, yL, yR, nx, ny) {
+                const X = lin(xL, xR, nx);
+                const Y = lin(yL, yR, ny);
+
+                // 评估网格
+                const g = [];
+                for (let j = 0; j < ny; j++) {
+                    const row = [];
+                    for (let i = 0; i < nx; i++) {
+                        row.push(f(X[i], Y[j]));
+                    }
+                    g.push(row);
+                }
+
+                const segs = [];
+                const lerp = (a, b, va, vb) => {
+                    const d = vb - va;
+                    if (Math.abs(d) < 1e-30) return (a + b) / 2;
+                    return a + (-va) / d * (b - a);
+                };
+
+                for (let j = 0; j < ny - 1; j++) {
+                    for (let i = 0; i < nx - 1; i++) {
+                        const v00 = g[j][i],
+                            v10 = g[j][i + 1];
+                        const v01 = g[j + 1][i],
+                            v11 = g[j + 1][i + 1];
+
+                        // 4-bit 分类
+                        let code = 0;
+                        if (v00 < 0) code |= 1;
+                        if (v10 < 0) code |= 2;
+                        if (v11 < 0) code |= 4;
+                        if (v01 < 0) code |= 8;
+                        if (code === 0 || code === 15) continue;
+
+                        // 各边插值点
+                        const left = [X[i], lerp(Y[j], Y[j + 1], v00, v01)];
+                        const right = [X[i + 1], lerp(Y[j], Y[j + 1], v10, v11)];
+                        const bot = [lerp(X[i], X[i + 1], v00, v10), Y[j]];
+                        const top = [lerp(X[i], X[i + 1], v01, v11), Y[j + 1]];
+
+                        const P = (p) => { segs.push(p); };
+
+                        // Marching squares 查表（16 种情况）
+                        switch (code) {
+                            case 1:
+                            case 14:
+                                P([left, bot]);
+                                break;
+                            case 2:
+                            case 13:
+                                P([bot, right]);
+                                break;
+                            case 3:
+                            case 12:
+                                P([left, right]);
+                                break;
+                            case 4:
+                            case 11:
+                                P([top, right]);
+                                break;
+                            case 5: { // saddle (BL-, TR-)
+                                const cx = (X[i] + X[i + 1]) / 2;
+                                const cy = (Y[j] + Y[j + 1]) / 2;
+                                const vc = f(cx, cy);
+                                if (vc > 0) { P([left, bot]);
+                                    P([top, right]); } else { P([top, left]);
+                                    P([bot, right]); }
+                                break;
+                            }
+                            case 10: { // saddle (BR-, TL-)
+                                const cx = (X[i] + X[i + 1]) / 2;
+                                const cy = (Y[j] + Y[j + 1]) / 2;
+                                const vc = f(cx, cy);
+                                if (vc > 0) { P([top, left]);
+                                    P([bot, right]); } else { P([top, right]);
+                                    P([left, bot]); }
+                                break;
+                            }
+                            case 6:
+                            case 9:
+                                P([top, bot]);
+                                break;
+                            case 7:
+                            case 8:
+                                P([top, left]);
+                                break;
+                        }
+                    }
+                }
+                return segs;
+            }
+
+            // =====================================================
+            //  13. 隐函数绘图
+            // =====================================================
+            function plotImplicit(expr, id) {
+                const xL = parseFloat(ci.xL.value) || -3;
+                const xR = parseFloat(ci.xR.value) || 3;
+                const yL = parseFloat(ci.yL.value) || -3;
+                const yR = parseFloat(ci.yR.value) || 3;
+                const n = parseInt(ci.n.value, 10) || 100;
+                const col = ci.col.value || '#f0a500';
+
+                if (xL >= xR || yL >= yR) { showErr('范围最小值必须小于最大值'); return; }
+
+                setTimeout(() => {
+                    if (id !== pid) { pLoad.classList.remove('show'); return; }
+
+                    // 构造 f(x,y) 函数
+                    const f = (x, y) => {
+                        try { const v = math.evaluate(expr, { x, y }); return (typeof v === 'number') ? v :
+                            NaN; } catch (_) { return NaN; }
+                    };
+
+                    // 先少量采样检测是否有值
+                    const testN = 30;
+                    let hasData = false;
+                    for (let j = 0; j < testN && !hasData; j++) {
+                        for (let i = 0; i < testN && !hasData; i++) {
+                            const xv = xL + (xR - xL) * i / (testN - 1);
+                            const yv = yL + (yR - yL) * j / (testN - 1);
+                            const v = f(xv, yv);
+                            if (isFinite(v)) { hasData = true; break; }
+                        }
+                    }
+                    if (!hasData) {
+                        showErr('表达式在该范围内无有效值');
+                        return;
+                    }
+
+                    if (id !== pid) { pLoad.classList.remove('show'); return; }
+
+                    const segs = march(f, xL, xR, yL, yR, n, n);
+
+                    if (segs.length === 0) {
+                        showErr('未找到 f(x,y)=0 的曲线（尝试调整范围或增大精度）');
+                        return;
+                    }
+
+                    // 构建 Plotly 数据（NaN 分隔）
+                    const xs = [],
+                        ys = [];
+                    for (const seg of segs) {
+                        xs.push(seg[0][0], seg[1][0], NaN);
+                        ys.push(seg[0][1], seg[1][1], NaN);
+                    }
+
+                    const data = [{
+                        x: xs,
+                        y: ys,
+                        type: 'scatter',
+                        mode: 'lines',
+                        name: `${expr}=0`,
+                        line: { color: col, width: 2.5 },
+                        hoverinfo: 'none',
+                    }];
+
+                    const lay = {
+                        title: { text: `${expr} = 0`, font: { color: '#e0e0e0', size: 14 } },
+                        autosize: true, height: 460,
+                        paper_bgcolor: '#0a0a14', plot_bgcolor: '#0a0a14',
+                        font: { color: '#aab', size: 12 },
+                        xaxis: { title: 'x', gridcolor: '#2a2a3e', zerolinecolor: '#444', color: '#889',
+                            range: [xL, xR], scaleanchor: 'y', scaleratio: 1 },
+                        yaxis: { title: 'y', gridcolor: '#2a2a3e', zerolinecolor: '#444', color: '#889',
+                            range: [yL, yR] },
+                        margin: { l: 50, r: 20, b: 40, t: 50 },
+                        hovermode: 'closest', dragmode: 'zoom', showlegend: false,
+                    };
+                    try { Plotly.newPlot(pC, data, lay, { responsive: true, displaylogo: false, scrollZoom: true,
+                            modeBarButtonsToRemove: ['lasso2d', 'select2d'] }); } catch (e) { showErr(e.message); }
+
+                    // 显示统计
+                    pErr.textContent = `✅ 找到 ${segs.length} 条线段 (${n}×${n} 网格)`;
+                    pErr.style.display = 'block';
+                    pErr.style.color = '#6f8';
+                    setTimeout(() => { pErr.style.color = ''; }, 2000);
+
+                    pLoad.classList.remove('show');
+                }, 50);
+            }
+
+            // =====================================================
+            //  14. 3D 绘图
+            // =====================================================
+            function plot3D(expr, id) {
+                const xL = parseFloat(c3.xL.value) || -8,
+                    xR = parseFloat(c3.xR.value) || 8;
+                const yL = parseFloat(c3.yL.value) || -8,
+                    yR = parseFloat(c3.yR.value) || 8;
+                const n = parseInt(c3.n.value, 10) || 50;
+                const cs = c3.cs.value || 'Viridis';
+                if (xL >= xR || yL >= yR) { showErr('范围最小值必须小于最大值'); return; }
+
+                setTimeout(() => {
+                    if (id !== pid) { pLoad.classList.remove('show'); return; }
+                    const X = lin(xL, xR, n),
+                        Y = lin(yL, yR, n);
+                    const Z = [];
+                    let bad = false;
+                    for (let j = 0; j < n; j++) {
+                        const row = [];
+                        for (let i = 0; i < n; i++) {
+                            try { const v = math.evaluate(expr, { x: X[i], y: Y[j] });
+                                row.push((typeof v === 'number' && isFinite(v)) ? v : NaN); } catch (_) { row
+                                    .push(NaN);
+                                bad = true; }
+                        }
+                        Z.push(row);
+                    }
+                    if (id !== pid) { pLoad.classList.remove('show'); return; }
+                    if (bad) { pErr.textContent = '⚠️ 部分点异常，已跳过';
+                        pErr.style.display = 'block'; }
+
+                    const data = [{
+                        type: 'surface',
+                        x: X,
+                        y: Y,
+                        z: Z,
+                        colorscale: cs,
+                        showscale: true,
+                        contours: { z: { show: true, usecolormap: true, highlightcolor: "#fff",
+                            project: { z: true } } }
+                    }];
+                    const lay = {
+                        title: { text: `z = ${expr}`, font: { color: '#e0e0e0', size: 14 } },
+                        autosize: true, height: 460,
+                        paper_bgcolor: '#0a0a14', plot_bgcolor: '#0a0a14',
+                        font: { color: '#aab' },
+                        scene: {
+                            xaxis: { title: 'X', gridcolor: '#333', zerolinecolor: '#555', color: '#889' },
+                            yaxis: { title: 'Y', gridcolor: '#333', zerolinecolor: '#555', color: '#889' },
+                            zaxis: { title: 'Z', gridcolor: '#333', zerolinecolor: '#555', color: '#889' },
+                            camera: { eye: { x: 1.8, y: 1.8, z: 1.2 } },
+                            aspectmode: 'auto',
+                        },
+                        margin: { l: 40, r: 20, b: 20, t: 50 },
+                        hovermode: 'closest',
+                    };
+                    try { Plotly.newPlot(pC, data, lay, { responsive: true, displaylogo: false, scrollZoom: true,
+                            modeBarButtonsToRemove: ['lasso2d', 'select2d'] }); } catch (e) { showErr(e.message); }
+                    pLoad.classList.remove('show');
+                }, 50);
+            }
+
+            // =====================================================
+            //  15. 主绘图调度
+            // =====================================================
+            function doPlot() {
+                if (!HAS_PLOTLY) { pErr.textContent = '⚠️ Plotly.js 未加载';
+                    pErr.style.display = 'block'; return; }
+                const expr = c2.expr.value.trim();
+                if (!expr) { showErr('请输入表达式'); return; }
+                pErr.style.display = 'none';
+                pLoad.classList.add('show');
+                const id = ++pid;
+
+                if (PM === '2d') plot2D(expr, id);
+                else if (PM === 'implicit') plotImplicit(expr, id);
+                else plot3D(expr, id);
+            }
+
+            plBtn.addEventListener('click', doPlot);
+            clBtn.addEventListener('click', function() {
+                Plotly.purge(pC);
+                pC.innerHTML = '';
+                pErr.style.display = 'none';
+            });
+
+            c2.expr.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') { e.preventDefault();
+                    doPlot(); }
+            });
+
+            let at = null;
+
+            function auto() { if (at) clearTimeout(at);
+                at = setTimeout(doPlot, 600); }
+
+            // 所有输入事件触发自动绘图
+            [c2.expr, c2.xL, c2.xR, c2.n,
+                ci.xL, ci.xR, ci.yL, ci.yR, ci.n, ci.col,
+                c3.xL, c3.xR, c3.yL, c3.yR, c3.n, c3.cs
+            ].forEach(el => {
+                if (el) {
+                    el.addEventListener('change', auto);
+                    if (el === c2.expr || el === ci.col) el.addEventListener('input', auto);
+                }
+            });
+
+            let rt;
+            window.addEventListener('resize', function() {
+                if (rt) clearTimeout(rt);
+                rt = setTimeout(() => {
+                    if (HAS_PLOTLY && pC.querySelector('.js-plotly-plot')) Plotly.Plots.resize(pC);
+                }, 300);
+            });
+
+            // =====================================================
+            //  16. 启动
+            // =====================================================
+            if (!HAS_PLOTLY) {
+                pC.innerHTML =
+                    '<div style="display:flex;justify-content:center;align-items:center;height:100%;color:#f44;">❌ Plotly.js 加载失败，请刷新</div>';
+                plBtn.disabled = true;
+            }
+
+            updDisp();
+            cExpr.focus();
+            buildMenu();
+            setMode('2d');
+
+            console.log('🧮 Casio 计算器 + 2D/隐函数/3D 绘图已启动');
+            console.log('🎯 隐函数模式使用 Marching Squares 追踪 f(x,y)=0');
+
+        })();
+    </script>
+</body>
+</html>
